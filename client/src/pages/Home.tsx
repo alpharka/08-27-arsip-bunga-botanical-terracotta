@@ -1,5 +1,5 @@
 /* Arsip Bunga: editorial botanical, asymmetry, tactile ivory paper, quiet motion. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, ExternalLink, Flower2, Heart, MapPin, Music2, Pause, Play, Send, X } from "lucide-react";
 
 const CONFIG = {
@@ -49,6 +49,8 @@ function SectionLabel({ number, children }: { number: string; children: React.Re
 export default function Home() {
   const guest = GuestName();
   const [opened, setOpened] = useState(false);
+  const [activeSection, setActiveSection] = useState("atas");
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [musicOn, setMusicOn] = useState(false);
   const [remaining, setRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [lightbox, setLightbox] = useState<number | null>(null);
@@ -79,16 +81,43 @@ export default function Home() {
     window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, [lightbox]);
 
+  useEffect(() => {
+    const sections = ["atas", "cerita", "acara", "galeri", "rsvp", "kasih"].map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) setActiveSection(entry.target.id); }), { rootMargin: "-25% 0px -60% 0px", threshold: 0 });
+    sections.forEach(section => observer.observe(section));
+    return () => observer.disconnect();
+  }, [opened]);
+
+  const toggleMusic = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) { audio.play().then(() => { audio.volume = 0.24; setMusicOn(true); }).catch(() => setMusicOn(false)); }
+    else { audio.pause(); setMusicOn(false); }
+  };
+
   const copyValue = async (label: string, value: string) => { try { await navigator.clipboard.writeText(value); } catch { const area = document.createElement("textarea"); area.value = value; document.body.appendChild(area); area.select(); document.execCommand("copy"); area.remove(); } setCopied(label); window.setTimeout(() => setCopied(""), 2000); };
   const submitRsvp = (event: React.FormEvent) => { event.preventDefault(); if (!rsvp.name.trim() || !rsvp.message.trim()) return; const next = [...messages, { ...rsvp, name: rsvp.name.trim(), message: rsvp.message.trim(), time: new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(new Date()) }]; setMessages(next); localStorage.setItem("arsip-bunga-rsvp", JSON.stringify(next)); setSent(true); setRsvp({ name: "", status: "Hadir", message: "" }); };
-  const openInvite = () => { setOpened(true); document.body.classList.add("invite-open"); };
+  const openInvite = () => {
+    setOpened(true); document.body.classList.add("invite-open");
+    window.setTimeout(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.volume = 0;
+      audio.play().then(() => {
+        setMusicOn(true);
+        let volume = 0;
+        const fade = window.setInterval(() => { volume = Math.min(0.24, volume + 0.02); audio.volume = volume; if (volume >= 0.24) window.clearInterval(fade); }, 90);
+      }).catch(() => setMusicOn(false));
+    }, 80);
+  };
 
   return <div className="site-shell">
     <div className={`cover ${opened ? "cover--open" : ""}`} aria-hidden={opened}>
       <div className="cover-image" /><div className="cover-shade" />
       <div className="cover-content"><img className="emblem emblem--light" src="/manus-storage/arsip-bunga-emblem_77f7a1c0.png" alt="Emblem botani Alya dan Raka" /><p className="eyebrow light">Undangan pernikahan · 19.06.27</p><h1>Alya <i>&</i><br />Raka</h1><div className="cover-rule" /><p className="guest-label">Kepada Yth.<strong>{guest}</strong></p><button className="button button--light" onClick={openInvite}>Buka undangan <ArrowUpRight size={16} /></button></div>
     </div>
-    <header className={`topbar ${opened ? "topbar--visible" : ""}`}><a className="brand" href="#atas"><img src="/manus-storage/arsip-bunga-emblem_77f7a1c0.png" alt="" /> A<span>&</span>R</a><nav><a href="#cerita">Cerita</a><a href="#acara">Acara</a><a href="#galeri">Galeri</a><a href="#rsvp">RSVP</a><a href="#kasih">Tanda kasih</a></nav><span className="top-date">19 · 06 · 27</span></header>
+    <header className={`topbar ${opened ? "topbar--visible" : ""}`}><a className="brand" href="#atas"><img src="/manus-storage/arsip-bunga-emblem_77f7a1c0.png" alt="" /> A<span>&</span>R</a><nav>{[["cerita", "Cerita"], ["acara", "Acara"], ["galeri", "Galeri"], ["rsvp", "RSVP"], ["kasih", "Tanda kasih"]].map(([id, label]) => <a key={id} className={activeSection === id ? "nav-active" : ""} aria-current={activeSection === id ? "page" : undefined} href={`#${id}`}>{label}</a>)}</nav><span className="top-date">19 · 06 · 27</span></header>
+    <audio ref={audioRef} src="/manus-storage/arsip-bunga-ambient_93e9fff0.wav" loop preload="auto" aria-label="Musik instrumental undangan" />
     <main id="atas">
       <section className="hero"><div className="hero-copy reveal"><p className="eyebrow">Satu hari yang kami simpan</p><h2>Untuk dirayakan<br /><i>bersama.</i></h2><p className="hero-intro">Dengan penuh syukur dan bahagia, kami mengundang Anda untuk hadir menjadi bagian dari awal halaman baru kami.</p><a className="text-link" href="#cerita">Baca kisah kami <ArrowDown size={15} /></a></div><div className="hero-photo reveal"><img src="/manus-storage/arsip-bunga-hero_e1b8984e.jpg" alt="Meja bunga, kertas, dan cincin pernikahan" /><span className="photo-note">Bandung · Jawa Barat<br />sebuah sore, 2026</span></div></section>
       <section id="cerita" className="story section-wrap"><SectionLabel number="01">Cerita kami</SectionLabel><div className="story-grid"><div className="story-heading reveal"><img className="section-emblem" src="/manus-storage/arsip-bunga-emblem_77f7a1c0.png" alt="" /><span className="giant-mark">“</span><h2>Dari kebetulan<br />menjadi <i>pulang.</i></h2></div><div className="story-copy reveal"><p>Barangkali beberapa pertemuan memang tidak pernah benar-benar kebetulan. Kami bertemu di antara kesibukan yang biasa, lalu menemukan percakapan yang ingin kami lanjutkan setiap hari.</p><p>Dalam perjalanan yang pelan dan penuh tawa, kami belajar bahwa rumah bukan hanya tempat. Ia adalah seseorang yang membuat kita ingin pulang—dan memilih untuk tinggal.</p><div className="signature">Dengan kasih,<br /><strong>Alya & Raka</strong></div></div></div></section>
@@ -98,8 +127,8 @@ export default function Home() {
       <section id="kasih" className="gift section-wrap"><SectionLabel number="05">Tanda kasih</SectionLabel><div className="gift-grid"><div className="gift-copy reveal"><img className="section-emblem" src="/manus-storage/arsip-bunga-emblem_77f7a1c0.png" alt="" /><h2>Doa Anda<br />sudah <i>cukup.</i></h2><p>Bagi yang ingin mengirimkan tanda kasih, kami menyiapkan beberapa cara sederhana di bawah ini.</p></div><div className="gift-data reveal"><div className="gift-row"><div><span className="eyebrow">{CONFIG.ewalletProvider}</span><strong>{CONFIG.ewalletNumber}</strong><small>{CONFIG.recipient}</small></div><button className="icon-button" onClick={() => copyValue("ewallet", CONFIG.ewalletNumber)} aria-label="Salin nomor e-wallet">{copied === "ewallet" ? <Check size={17} /> : <Copy size={17} />}</button></div><div className="gift-row"><div><span className="eyebrow">{CONFIG.bank}</span><strong>{CONFIG.accountNumber}</strong><small>{CONFIG.recipient}</small></div><button className="icon-button" onClick={() => copyValue("bank", CONFIG.accountNumber)} aria-label="Salin nomor rekening">{copied === "bank" ? <Check size={17} /> : <Copy size={17} />}</button></div></div></div></section>
     </main>
     <footer><img className="emblem" src="/manus-storage/arsip-bunga-emblem_77f7a1c0.png" alt="" /><p>Terima kasih telah menjadi bagian<br />dari halaman ini.</p><strong>Alya <i>&</i> Raka</strong><span>19 · 06 · 2027</span></footer>
-    {opened && <button className="music-control" onClick={() => setMusicOn(!musicOn)} aria-label={musicOn ? "Jeda musik" : "Putar musik"}>{musicOn ? <Pause size={17} /> : <Music2 size={17} />}<span>{musicOn ? "Jeda musik" : "Putar musik"}</span></button>}
-    {opened && <nav className="mobile-nav"><a href="#cerita"><Heart size={16} /><span>Cerita</span></a><a href="#acara"><CalendarDays size={16} /><span>Acara</span></a><a href="#galeri"><Flower2 size={16} /><span>Galeri</span></a><a href="#rsvp"><Send size={16} /><span>RSVP</span></a></nav>}
+    {opened && <button className="music-control" onClick={toggleMusic} aria-label={musicOn ? "Jeda musik" : "Putar musik"}>{musicOn ? <Pause size={17} /> : <Music2 size={17} />}<span>{musicOn ? "Jeda musik" : "Putar musik"}</span></button>}
+    {opened && <nav className="mobile-nav">{[["cerita", Heart, "Cerita"], ["acara", CalendarDays, "Acara"], ["galeri", Flower2, "Galeri"], ["rsvp", Send, "RSVP"]].map(([id, Icon, label]) => { const NavIcon = Icon as typeof Heart; return <a key={id as string} className={activeSection === id ? "nav-active" : ""} aria-current={activeSection === id ? "page" : undefined} href={`#${id as string}`}><NavIcon size={16} /><span>{label as string}</span></a>; })}</nav>}
     {lightbox !== null && <div className="lightbox" role="dialog" aria-modal="true" aria-label="Galeri foto" onClick={() => setLightbox(null)}><button className="lightbox-close" onClick={() => setLightbox(null)} aria-label="Tutup"><X /></button><button className="lightbox-prev" onClick={e => { e.stopPropagation(); setLightbox((lightbox + gallery.length - 1) % gallery.length); }} aria-label="Foto sebelumnya"><ChevronLeft /></button><figure onClick={e => e.stopPropagation()}><img src={gallery[lightbox].src} alt={gallery[lightbox].alt} /><figcaption>Fragmen perjalanan · {String(lightbox + 1).padStart(2, "0")} / {String(gallery.length).padStart(2, "0")}</figcaption></figure><button className="lightbox-next" onClick={e => { e.stopPropagation(); setLightbox((lightbox + 1) % gallery.length); }} aria-label="Foto berikutnya"><ChevronRight /></button></div>}
   </div>;
 }
